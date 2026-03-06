@@ -3,7 +3,7 @@
 📧 Contact: [Yu Chen](mailto:Yu.Chen@lshtm.ac.uk 
 )
 
-This repository contains lecture materials for the **Professional Development Programme (PDP) 2025–2026**, covering topics in formal demography.
+This repository contains lecture materials for the **Population Dynamics and Projections (PDP) 2025–2026**, covering topics in kinship demography, orphanhood estimation and decomposition methods.
 
 ---
 
@@ -32,9 +32,9 @@ An introduction to kinship demography and orphanhood estimation method, with an 
 **R Lab contents:**
 - Installing and loading [`DemoKin`](https://github.com/IvanWilli/DemoKin) and related packages (`dplyr`, `tidyr`, `ggplot2`)
 - Loading Swedish mortality (survival probabilities) and fertility (age-specific fertility rates) data
-- Fitting a **time-invariant kinship model** for Sweden (2018)
+- Fitting a **time-invariant kinship model** for Sweden
 - Visualising the **kinship network** — expected number of living kin for a focal individual at a given age
-- Plotting **age profiles of living kin** across the life course for selected kin types (mother, daughter, grandmother, granddaughter, sisters, aunts, nieces, cousins, etc.)
+- Plotting **age profiles of living kins** across the life course for selected kin types (mother, daughter, grandmother, granddaughter, sisters, aunts, nieces, cousins, etc.)
 
 **Key R packages:**
 | Package | Purpose |
