@@ -3,7 +3,7 @@
 📧 Contact: [Yu Chen](mailto:Yu.Chen@lshtm.ac.uk 
 )
 
-This repository contains lecture materials for the **[Population Dynamics and Projections (PDP) 2025–2026] (https://ble.lshtm.ac.uk/course/view.php?id=5646)**, covering topics in kinship demography, orphanhood estimation and decomposition methods.
+This repository contains lecture materials for the **[Population Dynamics and Projections (PDP) 2025–2026](https://ble.lshtm.ac.uk/course/view.php?id=5646)**, covering topics in kinship demography, orphanhood estimation and decomposition methods.
 
 ---
 
