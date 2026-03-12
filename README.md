@@ -1,11 +1,13 @@
 # PDP 2025–2026 Lecture Materials
 
-📧 Contact: [Yu Chen](mailto:Yu.Chen@lshtm.ac.uk 
-)
+📧 Contact: [Yu Chen](mailto:Yu.Chen@lshtm.ac.uk)
 
 This repository contains lecture materials for the **[Population Dynamics and Projections (PDP) 2025–2026](https://ble.lshtm.ac.uk/course/view.php?id=5646)**, covering topics in kinship demography, orphanhood estimation and decomposition methods.
 
-Lecture notes and R labs are available on the module page.
+Lecture notes and R labs are also available on the module page.
+
+> 💬 If you spot any errors in the slides or R labs, or have any questions or comments, please feel free to contact me. I hope you enjoy the lectures and have fun with the code! 😊
+
 ---
 
 ## 📂 Repository Structure
@@ -13,11 +15,14 @@ Lecture notes and R labs are available on the module page.
 ```
 PDP_2025-2026_lecture_materials/
 ├── Kinship demography/
-│   ├── Lecture notes/         
+│   ├── Lecture notes/
+│   │   ├── kinship-demography.pdf
+│   │   └── orphanhood-inequality.pdf
 │   └── R-lab/
-│       └── Kinship-demography-practical_yc.html  
+│       └── Kinship-demography-practical_yc.html
 └── Decomposition method/
     ├── Lecture notes/
+    │   ├── stepwise-replacement.pdf
     │   └── stepwise_replacement_algorithm_dashboard.html
     └── R-lab/
         ├── Decomposition-CoD.html
@@ -34,8 +39,12 @@ PDP_2025-2026_lecture_materials/
 
 An introduction to kinship demography and orphanhood estimation method, with an advanced topic on inequality analysis.
 
+**Lecture slides:**
+- `kinship-demography.pdf` — Introduction to kinship demography and orphanhood estimation
+- `orphanhood-inequality.pdf` — Advanced topic: inequality analysis
+
 **R Lab contents:**
-- **`Kinship-demography-practical_yc.Rmd`**- Installing and loading [`DemoKin`](https://github.com/IvanWilli/DemoKin) and related packages (`dplyr`, `tidyr`, `ggplot2`)
+- Installing and loading [`DemoKin`](https://github.com/IvanWilli/DemoKin) and related packages (`dplyr`, `tidyr`, `ggplot2`)
 - Loading Swedish mortality (survival probabilities) and fertility (age-specific fertility rates) data
 - Fitting a **time-invariant kinship model** for Sweden
 - Visualising the **kinship network** — expected number of living kin for a focal individual at a given age
@@ -49,20 +58,20 @@ An introduction to kinship demography and orphanhood estimation method, with an 
 | `tidyr` | Data reshaping |
 | `ggplot2` | Visualisation |
 
-> 📌 Lecture notes and additional materials will be available after class.
-
 ### 2. Decomposition Techniques
 📅 *Lecture date: 12 Mar 2026*
 
 An introduction to decomposition methods in demography, covering the Horiuchi (linear integral) decomposition and the stepwise replacement method, with applications to life expectancy and lifespan variation.
 
-**R Lab contents:**
-- **`Decomposition-CoD.Rmd`** — Main decomposition practical:
-  - Applying the **Horiuchi et al. (2008)** linear integral decomposition and **Andreev et al. (2002)** stepwise replacement method
-  - Decomposing changes in **life expectancy** (e₀) between 1996 and 2013 for Venezuelan males by age and **cause of death (CoD)**
-  - Comparing results from both decomposition methods side by side
-  - Extending the analysis to **lifespan variation** (standard deviation of age at death)
+**Lecture slides:**
+- `stepwise-replacement.pdf` — Stepwise replacement decomposition method
+- `stepwise_replacement_algorithm_dashboard.html` — Interactive algorithm walkthrough
 
+**R Lab contents:**
+- Applying the **Horiuchi et al. (2008)** linear integral decomposition and **Andreev et al. (2002)** stepwise replacement method
+- Decomposing changes in **life expectancy** (e₀) between 1996 and 2013 for Venezuelan males by age and **cause of death (CoD)**
+- Comparing results from both decomposition methods side by side
+- Extending the analysis to **lifespan variation** (standard deviation of age at death)
 
 **Key R packages:**
 | Package | Purpose |
@@ -77,7 +86,7 @@ An introduction to decomposition methods in demography, covering the Horiuchi (l
 ## 🚀 Getting Started
 
 1. Clone this repository.
-2. Open the `.Rmd` file in RStudio.
+2. Open RStudio and create your own `.Rmd` file — feel free to experiment and enjoy the coding journey! 🎉
 3. Install dependencies:
 
    **Kinship Demography:**
@@ -92,7 +101,7 @@ An introduction to decomposition methods in demography, covering the Horiuchi (l
    install.packages(c("DemoDecomp", "tidyr", "ggplot2", "ggpubr"))
    ```
 
-4. Knit the `.Rmd` to reproduce the HTML output.
+4. Refer to the HTML outputs in the `R-lab/` folders to check your results.
 
 
 
