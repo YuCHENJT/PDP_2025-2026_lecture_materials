@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stepwise Decomposition Dashboard</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; font-family: 'Georgia', serif; color: #e5e7eb; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const AGE_GROUPS = ["0–14", "15–44", "45–64", "65+"];
+const AGE_LABELS = ["x\u2080", "x\u2081", "x\u2082", "x\u2083"];
+const RATES_A = [0.0050, 0.0012, 0.0180, 0.0820];
+const RATES_B = [0.0020, 0.0008, 0.0120, 0.0620];
+const WEIGHTS  = [14, 30, 20, 36];
+
+function computeE0(rates) {
+  const val = rates.reduce((acc, r, i) => acc + (1 - r) * WEIGHTS[i], 0);
+  return (val / 100) * 80;
+}
+
+const E0_A = computeE0(RATES_A);
+const E0_B = computeE0(RATES_B);
+const TOTAL_DIFF = E0_B - E0_A;
+
+function computeForwardSteps() {
+  const steps = [];
+  let current = [...RATES_A];
+  let prevE0 = computeE0(current);
+  for (let i = 0; i < RATES_A.length; i++) {
+    const next = [...current]; next[i] = RATES_B[i];
+    const newE0 = computeE0(next);
+    steps.push({ age: i, contribution: newE0 - prevE0, e0Before: prevE0, e0After: newE0 });
+    current = next; prevE0 = newE0;
+  }
+  return steps;
+}
+
+function computeReverseSteps() {
+  const steps = [];
+  let current = [...RATES_B];
+  let prevE0 = computeE0(current);
+  for (let i = RATES_A.length - 1; i >= 0; i--) {
+    const next = [...current]; next[i] = RATES_A[i];
+    const newE0 = computeE0(next);
+    steps.push({ age: i, contribution: prevE0 - newE0, e0Before: prevE0, e0After: newE0 });
+    current = next; prevE0 = newE0;
+  }
+  return steps;
+}
+
+const forwardSteps  = computeForwardSteps();
+const reverseSteps  = computeReverseSteps();
+const contributions = RATES_A.map((_, i) => {
+  const fwd = forwardSteps.find(s => s.age === i)?.contribution ?? 0;
+  const rev = reverseSteps.find(s => s.age === i)?.contribution ?? 0;
+  return { age: i, forward: fwd, reverse: rev, average: (fwd + rev) / 2 };
+});
+
+const P = {
+  bg:"#0f1117", panel:"#1a1d27", border:"#2a2e40",
+  popA:"#4e9af1", popB:"#f17c4e", accent:"#a78bfa",
+  muted:"#6b7280", text:"#e5e7eb", textDim:"#9ca3af",
+  green:"#34d399", yellow:"#fbbf24",
+};
+
+const fmt   = v => v.toFixed(4);
+const fmtYr = v => (v >= 0 ? "+" : "") + v.toFixed(2) + " yrs";
+const fmtN  = (v, d=3) => (v >= 0 ? "+" : "") + v.toFixed(d);
+const fmtV  = (v, d=2) => v.toFixed(d);
+
+// ── f = A × B ordering demo ──────────────────────────────────────────────────
+function getABDecomp(a1, b1, a2, b2) {
+  const f1 = a1 * b1, f2 = a2 * b2, df = f2 - f1;
+  // Forward: replace A first, then B
+  const fmid_fwd = a2 * b1;
+  const cA_fwd   = fmid_fwd - f1;
+  const cB_fwd   = f2 - fmid_fwd;
+  // Reverse: replace B first, then A
+  const fmid_rev = a1 * b2;
+  const cB_rev   = fmid_rev - f1;
+  const cA_rev   = f2 - fmid_rev;
+  return {
+    f1, f2, df,
+    fmid_fwd, fmid_rev,
+    cA_fwd, cB_fwd, cA_rev, cB_rev,
+    cA_avg: (cA_fwd + cA_rev) / 2,
+    cB_avg: (cB_fwd + cB_rev) / 2,
+  };
+}
+
+function Slider({ label, value, min, max, step, onChange, color }) {
+  return (
+    <div style={{marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+        <span style={{fontSize:12,color:P.textDim,fontStyle:"italic"}}>{label}</span>
+        <span style={{fontSize:13,fontFamily:"monospace",color:color||P.text,fontWeight:600}}>{fmtV(value)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e=>onChange(parseFloat(e.target.value))}
+        style={{width:"100%",accentColor:color||P.accent,cursor:"pointer"}}
+      />
+    </div>
+  );
+}
+
+function PathDiagram({ label, f1, fmid, f2, cFirst, cSecond, firstLabel, secondLabel, col1, col2 }) {
+  const total = Math.abs(f2 - f1) || 1;
+  const wFirst  = Math.max(Math.abs(cFirst)  / total * 190, 4);
+  const wSecond = Math.max(Math.abs(cSecond) / total * 190, 4);
+  return (
+    <div style={{background:"#141820",border:`1.5px solid ${P.border}`,borderRadius:10,padding:"14px 16px",flex:1,minWidth:240}}>
+      <div style={{fontSize:11,color:P.accent,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace",marginBottom:12}}>{label}</div>
+      {[
+        {from:f1,   to:fmid, c:cFirst,  cl:col1, rl:"Replace "+firstLabel,  fromLbl:"f₁",   toLbl:"f_mid"},
+        {from:fmid, to:f2,   c:cSecond, cl:col2, rl:"Replace "+secondLabel, fromLbl:"f_mid",toLbl:"f₂"},
+      ].map((row,i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:i===0?10:0}}>
+          <div style={{width:48,textAlign:"right"}}>
+            <div style={{fontSize:9,color:P.textDim}}>{row.fromLbl}</div>
+            <div style={{fontSize:12,fontFamily:"monospace",color:i===0?P.popA:P.yellow}}>{fmtV(row.from)}</div>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:row.cl,marginBottom:2}}>{row.rl}</div>
+            <div style={{height:14,width:i===0?wFirst:wSecond,background:row.cl+"99",borderRadius:3,transition:"width 0.4s",minWidth:4}}/>
+            <div style={{fontSize:11,fontFamily:"monospace",color:row.cl,fontWeight:700}}>{fmtN(row.c)}</div>
+          </div>
+          <div style={{width:48}}>
+            <div style={{fontSize:9,color:P.textDim}}>{row.toLbl}</div>
+            <div style={{fontSize:12,fontFamily:"monospace",color:i===0?P.yellow:P.popB}}>{fmtV(row.to)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OrderingTab() {
+  const [a1, setA1] = React.useState(3);
+  const [b1, setB1] = React.useState(4);
+  const [a2, setA2] = React.useState(6);
+  const [b2, setB2] = React.useState(7);
+  const d = getABDecomp(a1, b1, a2, b2);
+  const interaction = (a2 - a1) * (b2 - b1);
+  const maxBar = Math.max(Math.abs(d.df), 1);
+
+  return (
+    <div>
+      {/* Conceptual intro */}
+      <div style={{background:P.panel,border:`1.5px solid ${P.border}`,borderRadius:12,padding:"14px 18px",marginBottom:14}}>
+        <div style={{fontSize:12,color:P.accent,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Why Ordering Matters — f = A × B</div>
+        <div style={{fontSize:13,color:P.textDim,lineHeight:1.75,marginBottom:12}}>
+          Consider <span style={{color:P.text,fontFamily:"monospace"}}>f = A × B</span> where both covariates change between two states.
+          The stepwise method replaces one covariate at a time, but the <em>order</em> determines how the
+          <strong style={{color:P.yellow}}> interaction term </strong>
+          (A₂−A₁)(B₂−B₁) is allocated. Adjust the sliders to observe the divergence.
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {[
+            {label:"f₁ = A₁ × B₁", val:fmtV(d.f1),  col:P.popA},
+            {label:"f₂ = A₂ × B₂", val:fmtV(d.f2),  col:P.popB},
+            {label:"Δf",            val:fmtN(d.df,2), col:P.green},
+            {label:"Interaction",   val:fmtN(interaction,2), col:P.yellow},
+          ].map(item=>(
+            <div key={item.label} style={{background:"#141820",border:`1.5px solid ${item.col}44`,borderRadius:8,padding:"8px 14px",flex:"1 1 90px"}}>
+              <div style={{fontSize:9,color:P.textDim,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace"}}>{item.label}</div>
+              <div style={{fontSize:17,fontFamily:"monospace",color:item.col,marginTop:2}}>{item.val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sliders */}
+      <div style={{display:"flex",gap:12,marginBottom:14,flexWrap:"wrap"}}>
+        <div style={{background:P.panel,border:`1.5px solid ${P.popA}44`,borderRadius:10,padding:"12px 16px",flex:"1 1 170px"}}>
+          <div style={{fontSize:11,color:P.popA,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace",marginBottom:10}}>Population 1</div>
+          <Slider label="A₁" value={a1} min={1} max={10} step={0.5} onChange={setA1} color={P.popA}/>
+          <Slider label="B₁" value={b1} min={1} max={10} step={0.5} onChange={setB1} color={P.popA}/>
+        </div>
+        <div style={{background:P.panel,border:`1.5px solid ${P.popB}44`,borderRadius:10,padding:"12px 16px",flex:"1 1 170px"}}>
+          <div style={{fontSize:11,color:P.popB,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace",marginBottom:10}}>Population 2</div>
+          <Slider label="A₂" value={a2} min={1} max={10} step={0.5} onChange={setA2} color={P.popB}/>
+          <Slider label="B₂" value={b2} min={1} max={10} step={0.5} onChange={setB2} color={P.popB}/>
+        </div>
+        <div style={{background:P.panel,border:`1.5px solid ${P.yellow}44`,borderRadius:10,padding:"12px 16px",flex:"1 1 120px",display:"flex",flexDirection:"column",justifyContent:"center",gap:4}}>
+          <div style={{fontSize:11,color:P.yellow,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace"}}>Interaction</div>
+          <div style={{fontSize:11,color:P.textDim,fontFamily:"monospace"}}>(A₂−A₁)(B₂−B₁)</div>
+          <div style={{fontSize:22,fontFamily:"monospace",color:P.yellow,fontWeight:700}}>{fmtN(interaction,2)}</div>
+          <div style={{fontSize:10,color:P.muted,fontStyle:"italic"}}>
+            {Math.abs(interaction) < 0.01 ? "≈ 0 → orderings agree" : "≠ 0 → orderings disagree"}
+          </div>
+        </div>
+      </div>
+
+      {/* Side-by-side path diagrams */}
+      <div style={{display:"flex",gap:12,marginBottom:14,flexWrap:"wrap"}}>
+        <PathDiagram label="Forward: A first, then B"
+          f1={d.f1} fmid={d.fmid_fwd} f2={d.f2}
+          cFirst={d.cA_fwd}  firstLabel="A"  col1={P.popA}
+          cSecond={d.cB_fwd} secondLabel="B" col2={P.popB}/>
+        <PathDiagram label="Reverse: B first, then A"
+          f1={d.f1} fmid={d.fmid_rev} f2={d.f2}
+          cFirst={d.cB_rev}  firstLabel="B"  col1={P.popB}
+          cSecond={d.cA_rev} secondLabel="A" col2={P.popA}/>
+      </div>
+
+      {/* Divergence comparison */}
+      <div style={{background:P.panel,border:`1.5px solid ${P.border}`,borderRadius:12,padding:"14px 18px",marginBottom:14}}>
+        <div style={{fontSize:12,color:P.accent,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace",marginBottom:12}}>Contribution Divergence by Covariate</div>
+        {[
+          {name:"A",col:P.popA,fwd:d.cA_fwd,rev:d.cA_rev,avg:d.cA_avg},
+          {name:"B",col:P.popB,fwd:d.cB_fwd,rev:d.cB_rev,avg:d.cB_avg},
+        ].map(row=>(
+          <div key={row.name} style={{marginBottom:14}}>
+            <div style={{fontSize:12,color:row.col,fontWeight:700,marginBottom:6,fontFamily:"monospace"}}>Covariate {row.name}</div>
+            {[
+              {lbl:"Forward",  val:row.fwd, alpha:"cc"},
+              {lbl:"Reverse",  val:row.rev, alpha:"55"},
+              {lbl:"Average ✓",val:row.avg, alpha:"ff", bold:true},
+            ].map(bar=>{
+              const w = Math.max(Math.abs(bar.val)/maxBar*200,2);
+              return (
+                <div key={bar.lbl} style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                  <div style={{width:62,textAlign:"right",fontSize:11,color:bar.bold?P.text:P.textDim}}>{bar.lbl}</div>
+                  <div style={{position:"relative",width:210,height:18,background:"#1e2130",borderRadius:3}}>
+                    <div style={{position:"absolute",left:0,top:2,height:14,width:w,
+                      background:row.col+bar.alpha,borderRadius:3,transition:"width 0.4s"}}/>
+                  </div>
+                  <div style={{fontSize:12,fontFamily:"monospace",
+                    color:bar.bold?P.yellow:row.col,fontWeight:bar.bold?700:400,minWidth:58}}>{fmtN(bar.val)}</div>
+                  {bar.bold && <div style={{fontSize:10,color:P.muted}}>← unambiguous</div>}
+                </div>
+              );
+            })}
+            <div style={{fontSize:10,color:P.muted,marginTop:2,fontStyle:"italic"}}>
+              Divergence |fwd − rev| = <span style={{color:P.yellow,fontFamily:"monospace"}}>{fmtN(Math.abs(row.fwd-row.rev),3)}</span>
+              {" "}= |(A₂−A₁)(B₂−B₁)| = <span style={{color:P.yellow,fontFamily:"monospace"}}>{fmtN(Math.abs(interaction),3)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Key insight */}
+      <div style={{background:"#141820",border:`1.5px solid ${P.green}44`,borderRadius:10,padding:"12px 18px",fontSize:12,color:P.textDim,lineHeight:1.9}}>
+        <div style={{color:P.green,fontWeight:700,marginBottom:5,fontFamily:"monospace",fontSize:11,letterSpacing:1,textTransform:"uppercase"}}>Key Insight — The Averaging Solution</div>
+        <div>For <span style={{fontFamily:"monospace",color:P.text}}>f = A × B</span>, the averaged contributions are:</div>
+        <div style={{margin:"4px 0",fontFamily:"monospace",fontSize:12}}>
+          <span style={{color:P.popA}}>Cₐ</span> = ½(B₁+B₂)(A₂−A₁) = <span style={{color:P.yellow}}>{fmtN(d.cA_avg)}</span>
+          &nbsp;&nbsp;&nbsp;
+          <span style={{color:P.popB}}>C_B</span> = ½(A₁+A₂)(B₂−B₁) = <span style={{color:P.yellow}}>{fmtN(d.cB_avg)}</span>
+        </div>
+        <div>
+          The interaction <span style={{fontFamily:"monospace",color:P.yellow}}>{fmtN(interaction,2)}</span> is
+          split equally between A and B, giving a unique symmetric solution. Check:
+          <span style={{fontFamily:"monospace",color:P.green}}> {fmtN(d.cA_avg)} + {fmtN(d.cB_avg)} = {fmtN(d.df,2)} = Δf</span> ✓
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RateBlock({ label, rate, highlight, isB }) {
+  return (
+    <div style={{
+      display:"flex", alignItems:"center", gap:6,
+      background: highlight ? (isB ? "#f17c4e22" : "#4e9af122") : "#1e2130",
+      border:`1.5px solid ${highlight ? (isB ? P.popB : P.popA) : P.border}`,
+      borderRadius:6, padding:"4px 8px", marginBottom:3, transition:"all 0.4s"
+    }}>
+      <span style={{color:P.textDim,fontSize:11,width:22,fontStyle:"italic"}}>{label}</span>
+      <span style={{color:highlight?(isB?P.popB:P.popA):P.textDim,fontSize:12,fontFamily:"monospace"}}>{fmt(rate)}</span>
+    </div>
+  );
+}
+
+function PopColumn({ title, rates, highlightAge, color }) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:110}}>
+      <div style={{color,fontWeight:700,fontSize:13,marginBottom:8,letterSpacing:1}}>{title}</div>
+      <div style={{background:P.panel,border:`1.5px solid ${color}44`,borderRadius:8,padding:"8px 10px",width:"100%"}}>
+        {rates.map((r,i) => <RateBlock key={i} label={AGE_LABELS[i]} rate={r} highlight={i===highlightAge} isB={color===P.popB} />)}
+      </div>
+    </div>
+  );
+}
+
+function StepPanel({ step }) {
+  const mixed     = RATES_A.map((r,i) => (i <= step ? RATES_B[i] : r));
+  const prevMixed = RATES_A.map((r,i) => (i <  step ? RATES_B[i] : r));
+  const e0Before  = computeE0(prevMixed);
+  const e0After   = computeE0(mixed);
+  const delta     = e0After - e0Before;
+  const col       = delta >= 0 ? P.green : "#f87171";
+  return (
+    <div style={{background:P.panel,border:`1.5px solid ${P.border}`,borderRadius:12,padding:"14px 18px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <div style={{background:P.accent+"33",border:`1.5px solid ${P.accent}`,borderRadius:20,padding:"2px 12px",fontSize:11,color:P.accent,fontWeight:700}}>
+          Step {step+1} / {RATES_A.length}
+        </div>
+        <span style={{color:P.textDim,fontSize:12}}>
+          Replacing <em style={{color:P.accent}}>{AGE_LABELS[step]}</em> ({AGE_GROUPS[step]}) with Pop B rate
+        </span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:12,flexWrap:"wrap"}}>
+        <PopColumn title="Before" rates={prevMixed} highlightAge={-1}   color={P.popA} />
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:60,paddingTop:30}}>
+          <div style={{fontSize:18,color:col}}>→</div>
+        </div>
+        <PopColumn title="After"  rates={mixed}     highlightAge={step} color={P.popB} />
+        <div style={{display:"flex",flexDirection:"column",justifyContent:"center",marginLeft:8,gap:5}}>
+          {[["e₀ before",e0Before,P.popA],["e₀ after",e0After,P.popB],["Contribution Cₓ",delta,col]].map(([lbl,val,c],i)=>(
+            <div key={i}>
+              <div style={{fontSize:10,color:P.textDim,marginTop:i>0?6:0}}>{lbl}</div>
+              <div style={{fontSize:i===2?16:14,fontFamily:"monospace",color:c,fontWeight:i===2?700:400}}>
+                {lbl.startsWith("Contribution") ? fmtYr(val) : val.toFixed(2)+" yrs"}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContribBar({ c, maxAbs }) {
+  const barW = Math.abs(c.average) / maxAbs * 180;
+  const col  = c.average >= 0 ? P.green : "#f87171";
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+      <div style={{width:70,textAlign:"right",fontSize:12,color:P.textDim,fontStyle:"italic"}}>
+        {AGE_LABELS[c.age]} <span style={{fontSize:10}}>({AGE_GROUPS[c.age]})</span>
+      </div>
+      <div style={{position:"relative",width:210,height:22,background:"#1e2130",borderRadius:4}}>
+        <div style={{position:"absolute",left:0,top:3,height:16,width:barW,background:col+"bb",borderRadius:3,transition:"width 0.5s"}}/>
+      </div>
+      <div style={{fontSize:12,fontFamily:"monospace",color:col,minWidth:68}}>{fmtYr(c.average)}</div>
+      <div style={{fontSize:10,color:P.muted}}>fwd: {fmtYr(c.forward)} | rev: {fmtYr(c.reverse)}</div>
+    </div>
+  );
+}
+
+function App() {
+  const [step, setStep] = useState(0);
+  const [view, setView] = useState("algorithm");
+  const maxAbs   = Math.max(...contributions.map(c => Math.abs(c.average)));
+  const sumContrib = contributions.reduce((s,c) => s + c.average, 0);
+
+  return (
+    <div style={{background:P.bg,minHeight:"100vh",padding:"24px 20px",fontFamily:"'Georgia',serif",color:P.text}}>
+      <div style={{maxWidth:820,margin:"0 auto"}}>
+
+        {/* Header */}
+        <div style={{marginBottom:4,fontSize:10,letterSpacing:3,color:P.accent,textTransform:"uppercase",fontFamily:"monospace"}}>
+          Demographic Decomposition · Stepwise Replacement Method
+        </div>
+        <h1 style={{fontSize:24,fontWeight:400,margin:"0 0 4px",letterSpacing:-0.5}}>
+          Stepwise Decomposition of Life Expectancy
+          <span style={{fontSize:15,fontWeight:400,color:P.textDim,fontStyle:"italic",marginLeft:8}}>
+            — Illustrative Worked Examples
+          </span>
+        </h1>
+        <p style={{color:P.textDim,fontSize:13,margin:"0 0 20px",fontStyle:"italic"}}>
+          Attributing Δe₀ to age-specific mortality contributions, averaged over forward and reverse orderings.
+        </p>
+
+        {/* KPI strip */}
+        <div style={{display:"flex",gap:10,marginBottom:22,flexWrap:"wrap"}}>
+          {[
+            {label:"Pop A  (e₀)",  val:E0_A.toFixed(2)+" yrs",  col:P.popA},
+            {label:"Pop B  (e₀)",  val:E0_B.toFixed(2)+" yrs",  col:P.popB},
+            {label:"Δe₀ = e₀ᴮ − e₀ᴬ", val:fmtYr(TOTAL_DIFF), col:P.green},
+            {label:"ΣCₓ (avg)",    val:fmtYr(sumContrib),       col:P.yellow},
+          ].map(item => (
+            <div key={item.label} style={{background:P.panel,border:`1.5px solid ${item.col}44`,borderRadius:10,padding:"10px 16px",flex:"1 1 130px"}}>
+              <div style={{fontSize:10,color:P.textDim,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace"}}>{item.label}</div>
+              <div style={{fontSize:18,fontFamily:"monospace",color:item.col,marginTop:2}}>{item.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
+          {[
+            ["algorithm","Algorithm Steps",""],
+            ["contributions","Final Contributions",""],
+            ["ordering","⚠ Ordering Matters","warn"],
+          ].map(([k,lbl,type]) => (
+            <button key={k} onClick={()=>setView(k)} style={{
+              background:view===k?(type==="warn"?"#f17c4e33":P.accent):"transparent",
+              border:`1.5px solid ${view===k?(type==="warn"?"#f17c4e":P.accent):P.border}`,
+              color:view===k?(type==="warn"?"#f17c4e":"#fff"):P.textDim,
+              borderRadius:20,padding:"5px 16px",cursor:"pointer",
+              fontSize:13,fontFamily:"inherit",transition:"all 0.2s"
+            }}>{lbl}</button>
+          ))}
+        </div>
+
+        {/* ── Algorithm view ── */}
+        {view==="algorithm" && (
+          <div>
+            <div style={{background:P.panel,border:`1.5px solid ${P.border}`,borderRadius:12,padding:"16px 18px",marginBottom:18}}>
+              <div style={{fontSize:12,color:P.accent,fontWeight:700,marginBottom:12,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace"}}>Algorithm Overview</div>
+              <div style={{display:"flex",gap:0,flexWrap:"wrap"}}>
+                {[
+                  {n:"①",title:"Initialise",    desc:"Begin with all age-specific rates from Pop A. Compute baseline e₀ᴬ."},
+                  {n:"②",title:"Sequential swap",desc:"Replace each age group's rate with the Pop B value, one group at a time."},
+                  {n:"③",title:"Measure Cₓ",    desc:"After each replacement, recompute e₀. The increment is the age contribution."},
+                  {n:"④",title:"Reverse & average",desc:"Repeat in reverse (B→A). Average contributions to eliminate ordering bias."},
+                ].map((s,i)=>(
+                  <div key={i} style={{flex:"1 1 150px",padding:"10px 14px",borderRight:i<3?`1px solid ${P.border}`:"none"}}>
+                    <div style={{fontSize:18,color:P.accent,marginBottom:5}}>{s.n}</div>
+                    <div style={{fontSize:12,color:P.text,fontWeight:600,marginBottom:3}}>{s.title}</div>
+                    <div style={{fontSize:11,color:P.textDim,lineHeight:1.6}}>{s.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:12,color:P.textDim,marginBottom:8}}>Select an age-group step to inspect the rate substitution:</div>
+              <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                {RATES_A.map((_,i)=>(
+                  <button key={i} onClick={()=>setStep(i)} style={{
+                    background:step===i?P.accent+"33":"transparent",
+                    border:`1.5px solid ${step===i?P.accent:P.border}`,
+                    color:step===i?P.accent:P.textDim,
+                    borderRadius:8,padding:"5px 12px",cursor:"pointer",
+                    fontSize:11,fontFamily:"monospace",transition:"all 0.2s"
+                  }}>{AGE_LABELS[i]}  {AGE_GROUPS[i]}</button>
+                ))}
+              </div>
+              <StepPanel step={step} />
+            </div>
+
+            <div style={{background:"#141820",border:`1.5px solid ${P.accent}33`,borderRadius:10,padding:"12px 18px",marginTop:8,fontSize:12,color:P.textDim,lineHeight:2}}>
+              <span style={{color:P.accent,fontFamily:"monospace"}}>Cₓ</span>
+              {" = ½ · (Cₓᶠʷᵈ + Cₓʳᵉᵛ)   and   "}
+              <span style={{color:P.green,fontFamily:"monospace"}}>Δe₀</span>
+              {" = "}
+              <span style={{color:P.yellow,fontFamily:"monospace"}}>ΣCₓ</span>
+              <span style={{color:P.muted,fontSize:10,marginLeft:8}}>(contributions sum exactly to the observed gap)</span>
+            </div>
+
+            {/* e0 computation note */}
+            <div style={{background:"#141820",border:`1.5px solid #f17c4e44`,borderRadius:10,padding:"14px 18px",marginTop:10}}>
+              <div style={{fontSize:11,color:"#f17c4e",fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace",marginBottom:10}}>
+                ⚠ How e₀ Is Computed in This Example
+              </div>
+              <div style={{fontSize:12,color:P.textDim,lineHeight:1.85,marginBottom:10}}>
+                The e₀ used here is a <span style={{color:P.text,fontStyle:"italic"}}>pedagogical simplification</span>, not a proper life table.
+                It is computed as a weighted average of age-specific survival probabilities, scaled to plausible years:
+              </div>
+              {/* Formula display */}
+              <div style={{background:"#0f1117",border:`1px solid ${P.border}`,borderRadius:8,padding:"10px 16px",marginBottom:10,fontFamily:"monospace",fontSize:13,lineHeight:2.2}}>
+                <div>
+                  <span style={{color:P.green}}>ẽ₀</span>
+                  {" = 80 × "}
+                  <span style={{color:P.textDim}}>{"(1/100)"}</span>
+                  {" × Σₓ (1 − mₓ) · wₓ"}
+                </div>
+                <div style={{fontSize:11,color:P.muted}}>
+                  {"where  wₓ = "}
+                  <span style={{color:P.popA}}>{"{14, 30, 20, 36}"}</span>
+                  {"  (% person-years per age group, summing to 100)"}
+                </div>
+              </div>
+              {/* Two-column explanation */}
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                <div style={{flex:"1 1 220px",background:"#1a1d27",border:`1px solid ${P.green}33`,borderRadius:8,padding:"10px 14px"}}>
+                  <div style={{fontSize:11,color:P.green,fontWeight:700,marginBottom:5,fontFamily:"monospace"}}>WHY THIS IS LINEAR</div>
+                  <div style={{fontSize:11,color:P.textDim,lineHeight:1.7}}>
+                    Each mₓ enters the formula independently — there are no cross-products between age groups.
+                    The mixed partial derivative <span style={{fontFamily:"monospace",color:P.text}}>∂²ẽ₀ / ∂mₓ ∂mₓ'= 0</span> for all x ≠ x'.
+                    Consequently, <strong style={{color:P.green}}>ordering does not matter</strong> in this example:
+                    forward and reverse stepwise contributions are identical.
+                  </div>
+                </div>
+                <div style={{flex:"1 1 220px",background:"#1a1d27",border:`1px solid #f17c4e33`,borderRadius:8,padding:"10px 14px"}}>
+                  <div style={{fontSize:11,color:"#f17c4e",fontWeight:700,marginBottom:5,fontFamily:"monospace"}}>WHY THE REAL e₀ DIFFERS</div>
+                  <div style={{fontSize:11,color:P.textDim,lineHeight:1.7}}>
+                    A proper life table computes survival as a chain of products:
+                    <span style={{fontFamily:"monospace",color:P.text}}> ℓₓ = Π(1 − mₖ)</span> for k {"<"} x.
+                    This makes e₀ <span style={{fontStyle:"italic"}}>nonlinear</span> — changing m₀ alters ℓₓ for every subsequent age.
+                    In that case, <strong style={{color:"#f17c4e"}}>ordering genuinely matters</strong> and averaging is necessary.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Contributions view ── */}
+        {view==="contributions" && (
+          <div>
+            <div style={{background:P.panel,border:`1.5px solid ${P.border}`,borderRadius:12,padding:18,marginBottom:18}}>
+              <div style={{fontSize:12,color:P.accent,fontWeight:700,marginBottom:14,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace"}}>Age-Specific Contributions to Δe₀</div>
+              {contributions.map(c => <ContribBar key={c.age} c={c} maxAbs={maxAbs} />)}
+              <div style={{borderTop:`1px dashed ${P.border}`,marginTop:12,paddingTop:10,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:70,textAlign:"right",fontSize:12,color:P.textDim}}>ΣCₓ</div>
+                <div style={{width:210}}/>
+                <div style={{fontSize:14,fontFamily:"monospace",color:P.yellow,fontWeight:700}}>{fmtYr(sumContrib)}</div>
+                <div style={{fontSize:10,color:P.muted}}>≈ Δe₀ ({fmtYr(TOTAL_DIFF)})</div>
+              </div>
+            </div>
+
+            <div style={{background:P.panel,border:`1.5px solid ${P.border}`,borderRadius:12,padding:18}}>
+              <div style={{fontSize:12,color:P.accent,fontWeight:700,marginBottom:12,letterSpacing:1,textTransform:"uppercase",fontFamily:"monospace"}}>Forward vs. Reverse Ordering</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr style={{borderBottom:`1px solid ${P.border}`}}>
+                    {["Age group","Forward Cₓ","Reverse Cₓ","Average Cₓ"].map(h=>(
+                      <th key={h} style={{textAlign:"left",padding:"6px 10px",color:P.textDim,fontWeight:600,fontFamily:"monospace"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {contributions.map(c=>(
+                    <tr key={c.age} style={{borderBottom:`1px solid ${P.border}22`}}>
+                      <td style={{padding:"7px 10px",fontStyle:"italic"}}>{AGE_LABELS[c.age]} <span style={{color:P.muted,fontSize:10}}>({AGE_GROUPS[c.age]})</span></td>
+                      <td style={{padding:"7px 10px",fontFamily:"monospace",color:c.forward>=0?P.green:"#f87171"}}>{fmtYr(c.forward)}</td>
+                      <td style={{padding:"7px 10px",fontFamily:"monospace",color:c.reverse>=0?P.green:"#f87171"}}>{fmtYr(c.reverse)}</td>
+                      <td style={{padding:"7px 10px",fontFamily:"monospace",color:P.yellow,fontWeight:700}}>{fmtYr(c.average)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{marginTop:10,fontSize:10,color:P.muted,fontStyle:"italic"}}>
+                Averaging over both orderings eliminates the path-dependence inherent in the stepwise approach.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Ordering matters view ── */}
+        {view==="ordering" && <OrderingTab />}
+
+        {/* ── Acknowledgement footer ── */}
+        <div style={{
+          marginTop:36, borderTop:`1px solid ${P.border}`,
+          paddingTop:18, paddingBottom:8,
+        }}>
+          <div style={{
+            background:"#141820", border:`1px solid ${P.border}`,
+            borderRadius:10, padding:"14px 20px",
+          }}>
+            <div style={{fontSize:11,color:P.accent,fontWeight:700,letterSpacing:1,
+              textTransform:"uppercase",fontFamily:"monospace",marginBottom:10}}>
+              Acknowledgements
+            </div>
+            <div style={{fontSize:12,color:P.textDim,lineHeight:1.85}}>
+              <p style={{marginBottom:7}}>
+                The conceptual framework, illustrative examples, and pedagogical design of this dashboard
+                are based on the original ideas of{" "}
+                <span style={{color:P.text,fontWeight:600}}>Yu Chen</span>.
+                The author conducted all intellectual design decisions and performed the final review
+                and verification of all content presented herein.
+              </p>
+              <p style={{marginBottom:7}}>
+                Interactive visualisation and code implementation were produced with the assistance of{" "}
+                <span style={{color:P.text,fontWeight:600}}>Claude</span>
+                {" "}(Anthropic, claude-sonnet-4-6), an AI language model, acting under the
+                author's direction and subject to the author's approval at each stage.
+              </p>
+              <p style={{marginBottom:0,color:P.muted,fontSize:11}}>
+                <em>
+                  Note: all numerical values are illustrative and do not represent any real population data.
+                  The simplified e₀ proxy is used solely for pedagogical demonstration of the stepwise
+                  replacement algorithm.
+                </em>
+              </p>
+            </div>
+            <div style={{
+              marginTop:14, paddingTop:12,
+              borderTop:`1px dashed ${P.border}`,
+              display:"flex", justifyContent:"space-between",
+              alignItems:"center", flexWrap:"wrap", gap:8,
+            }}>
+              <div style={{fontSize:12,color:P.text}}>
+                <span style={{fontWeight:600}}>© Yu Chen</span>
+                <span style={{color:P.muted,marginLeft:8,fontStyle:"italic"}}>
+                  Demographic Methods · Stepwise Replacement Method
+                </span>
+              </div>
+              <div style={{fontSize:11,fontFamily:"monospace",color:P.muted}}>
+                12 March 2026
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
