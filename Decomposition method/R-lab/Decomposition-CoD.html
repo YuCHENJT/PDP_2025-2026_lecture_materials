@@ -1612,24 +1612,21 @@ algorithm</p>
 <div id="set-up" class="section level2">
 <h2>Set up</h2>
 <p>Following the method, we require two vectors of rates: one for 2013
-and one for 1996. You can choose any two years that you want to do the
-decomposition, but make sure to change the ‘ref.yr’ and ‘tar.yr’
-variables in the code below.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: note to change</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>ref.yr <span class="ot">&lt;-</span> <span class="dv">1996</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>tar.yr <span class="ot">&lt;-</span> <span class="dv">2013</span></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co"># we need age-cause specific mortality rates in each CoD</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>COD1 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  cause.age.specific.mx[cause.age.specific.mx<span class="sc">$</span>year<span class="sc">==</span>ref.yr,</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>                        <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  )</span>
+and one for 1996.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>ref.yr <span class="ot">&lt;-</span> <span class="dv">1996</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>tar.yr <span class="ot">&lt;-</span> <span class="dv">2013</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># we need age-cause specific mortality rates in each CoD</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>COD1 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  cause.age.specific.mx[cause.age.specific.mx<span class="sc">$</span>year<span class="sc">==</span>ref.yr,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>                        <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  )</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a></span>
 <span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a></span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>COD2 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(</span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  cause.age.specific.mx[cause.age.specific.mx<span class="sc">$</span>year<span class="sc">==</span>tar.yr,</span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>                        <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  )</span></code></pre></div>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>COD2 <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  cause.age.specific.mx[cause.age.specific.mx<span class="sc">$</span>year<span class="sc">==</span>tar.yr,</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>                        <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  )</span></code></pre></div>
 <div id="question-how-to-set-the-function-for-the-decomposition-by-cod" class="section level3">
 <h3>Question: How to set the function for the decomposition by CoD?</h3>
 <p>Recall what we learnt yesterday</p>
